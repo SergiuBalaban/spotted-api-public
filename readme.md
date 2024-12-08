@@ -82,6 +82,7 @@ The Laravel framework is open-source software licensed under the [MIT license](h
 - php artisan migrate
 - php artisan db:seed
 - composer dump-autoload
+- php artisan test
 
 ## Bugs
 - Resolve bug with access token (after connecting some times).
