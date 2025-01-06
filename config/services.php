@@ -44,7 +44,7 @@ return [
         ],
     ],
 
-    'nexmo' => [
+    'vonage' => [
         'key' => env('NEXMO_KEY'),
         'secret' => env('NEXMO_SECRET'),
         'sms_from' => env('NEXMO_SENDER_NAME'),

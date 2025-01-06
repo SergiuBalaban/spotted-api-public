@@ -2,127 +2,75 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\ForbiddenException;
-use App\Exceptions\OnePetCreationException;
-use App\Http\Requests\PetCreateRequest;
-use App\Http\Requests\PetRemoveGalleryRequest;
-use App\Http\Requests\PetRequest;
-use App\Libraries\PetService;
+use App\Actions\Pet\CreatePetAction;
+use App\Actions\Pet\GetPetsAction;
+use App\Actions\Pet\UpdatePetAction;
+use App\Actions\Pet\UpdatePetStatusAction;
+use App\Actions\Services\DeleteGalleryAction;
+use App\Actions\Services\ParseGalleryAction;
+use App\Http\Requests\Pet\CreateGalleryPetRequest;
+use App\Http\Requests\Pet\CreatePetRequest;
+use App\Http\Requests\Pet\DeletePetGalleryRequest;
+use App\Http\Requests\Pet\UpdatePetRequest;
+use App\Http\Requests\Pet\UpdatePetStatusRequest;
 use App\Models\Pet;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class PetController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function index(Request $request)
+    public function getPets(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-        $pets = $user->pets()->get();
-        return response()->json($pets, 200);
+        $pets = app(GetPetsAction::class)->run($request);
+
+        return response()->json($pets);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param PetCreateRequest $request
-     * @return JsonResponse
-     * @throws ForbiddenException
-     * @throws \Throwable
-     */
-    public function store(PetCreateRequest $request)
+    public function createPet(CreatePetRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-        if($user->pets()->count() >= 1) {
-            throw new OnePetCreationException();
-        }
-        $petService = new PetService($request);
-        $pet = $petService->create();
+        $pet = app(CreatePetAction::class)->run($request);
 
-        return response()->json($pet, 200);
+        return response()->json($pet);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param Request $request
-     * @param Pet $pet
-     * @return JsonResponse
-     */
-    public function show(Request $request, Pet $pet)
+    public function findPetById(Request $request, Pet $pet): JsonResponse
     {
-        return response()->json($pet, 200);
+        return response()->json($pet);
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param PetRequest $request
-     * @param Pet $pet
-     * @return JsonResponse
-     * @throws \Throwable
-     */
-    public function update(PetRequest $request, Pet $pet)
+    public function updatePet(UpdatePetRequest $request, Pet $pet): JsonResponse
     {
-        $petService = new PetService($request);
-        $pet = $petService->update($pet);
-        return response()->json($pet, 200);
+        $pet = app(UpdatePetAction::class)->run($request, $pet);
+
+        return response()->json($pet);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param Request $request
-     * @param Pet $pet
-     * @return JsonResponse
-     */
-    public function destroy(Request $request, Pet $pet)
+    public function deletePet(Request $request, Pet $pet): Response
     {
         $pet->delete();
-        return response()->json(['success' => 1], 200);
+
+        return response()->noContent();
     }
 
-    /**
-     * @param Request $request
-     * @param Pet $pet
-     * @return JsonResponse
-     * @throws ForbiddenException
-     * @throws \Throwable
-     */
-    public function addGallery(Request $request, Pet $pet)
+    public function updatePetStatus(UpdatePetStatusRequest $request, Pet $pet): Response
     {
-        $petService = new PetService($request);
-        $pet = $petService->addGallery($pet);
-        return response()->json($pet, 200);
+        app(UpdatePetStatusAction::class)->run($request, $pet);
+
+        return response()->noContent();
     }
 
-    /**
-     * @param PetRemoveGalleryRequest $request
-     * @param Pet $pet
-     * @return JsonResponse
-     */
-    public function removeGallery(PetRemoveGalleryRequest $request, Pet $pet)
+    public function createPetGallery(CreateGalleryPetRequest $request, Pet $pet): JsonResponse
     {
-        $petService = new PetService($request);
-        $pet = $petService->removeGallery($pet, $request->get('files'));
-        return response()->json($pet, 200);
+        $pet = app(ParseGalleryAction::class)->run($request, $pet);
+
+        return response()->json($pet);
     }
 
-    /**
-     * @param Request $request
-     * @param Pet $pet
-     * @return JsonResponse
-     */
-    public function trackedReportedPets(Request $request, Pet $pet)
+    public function deletePetGallery(DeletePetGalleryRequest $request, Pet $pet): JsonResponse
     {
-        return response()->json($pet->trackedReportedPets()->get(), 200);
+        $pet = app(DeleteGalleryAction::class)->run($request, $pet);
+
+        return response()->json($pet);
     }
 }

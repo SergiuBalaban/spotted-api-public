@@ -2,103 +2,41 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\ForbiddenException;
-use App\Exceptions\UserSMSCodeExpiredException;
-use App\Exceptions\UserSMSCodeIncorrectException;
+use App\Actions\Auth\LoginAction;
+use App\Actions\Auth\LogoutAction;
+use App\Actions\Auth\RefreshAction;
+use App\Actions\Auth\ValidateAuthSmsAction;
 use App\Http\Requests\VerificationRequest;
-use App\Libraries\UserService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use App\Http\Requests\LoginRequest;
-use App\Models\User;
-use Illuminate\Support\Facades\App;
-use JWTAuth;
-use Nexmo\Laravel\Facade\Nexmo;
+use Illuminate\Http\Response;
 
 class AuthController extends Controller
 {
-    /**
-     * @param VerificationRequest $request
-     * @return JsonResponse
-     */
-    public function verification(VerificationRequest $request)
+    public function verification(VerificationRequest $request): JsonResponse
     {
-        $phone = trim($request->get('phone'));
+        $response = app(ValidateAuthSmsAction::class)->run($request);
 
-        // TODO: Check phone number if valid for nexmo
-        $user = User::wherePhone($phone)->orWhere('phone', 'LIKE', '%'.$phone.'%')->first();
-
-        if(!$user) {
-            $userService = new UserService();
-            $user = $userService->create($request);
-        }
-
-        $smsCode = generateSmsCode();
-        date_default_timezone_set('Europe/Bucharest');
-        $expirationCode = Carbon::now()->addMinutes(User::DEFAULT_VALID_EXPIRATION_CODE_IN_MIN);
-        $user->update(['sms_code' => $smsCode, 'sms_code_expiration' => $expirationCode]);
-
-        if(App::isProduction() && !in_array($phone, User::DEFAULT_PHONES_FOR_TESTING)) {
-            Nexmo::message()->send([
-                'to' => $user->phone,
-                'from' => 'Spotted APP',
-                'text' => 'Codul tău de verificare pentru Spotted App: '. $smsCode .'. Va exipra în '.User::DEFAULT_VALID_EXPIRATION_CODE_IN_MIN.' minute.'
-            ]);
-            $smsCode = null;
-        }
-
-        return response()->json(['sms_code' => $smsCode], 200);
+        return response()->json($response);
     }
 
-    /**
-     * Get a JWT via given credentials, and user details.
-     *
-     * @param LoginRequest $request
-     * @return JsonResponse
-     * @throws ForbiddenException
-     */
-    public function login(LoginRequest $request)
+    public function login(VerificationRequest $request): JsonResponse
     {
-        $user = User::where('phone', trim($request->phone))
-            ->where('sms_code', $request->sms_code)
-            ->first();
+        $token = app(LoginAction::class)->run($request);
 
-        if(!$user) {
-            throw new UserSMSCodeIncorrectException();
-        }
-
-        if($user->sms_code_expiration < Carbon::now()) {
-            throw new UserSMSCodeExpiredException();
-        }
-
-        JWTAuth::factory()->setTTL(525600);
-        if (!$token = auth()->login($user)) {
-            throw new UserSMSCodeIncorrectException();
-        }
-
-        $user->update(['active' => 1]);
-        return $this->response->setJwtToken($token)->send();
+        return $this->setJwtToken($token);
     }
 
-    /**
-     * Log the user out (Invalidate the token).
-     *
-     * @return JsonResponse
-     */
-    public function logout()
+    public function logout(): Response
     {
-        auth()->logout();
-        return $this->response->send();
+        app(LogoutAction::class)->run();
+
+        return response()->noContent();
     }
 
-    /**
-     * Refresh a token.
-     *
-     * @return JsonResponse
-     */
-    public function refresh()
+    public function refresh(): JsonResponse
     {
-        JWTAuth::factory()->setTTL(525600);
-        return $this->response->setJwtToken(auth()->refresh())->send();
+        $token = app(RefreshAction::class)->run();
+
+        return $this->setJwtToken($token);
     }
 }

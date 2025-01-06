@@ -3,27 +3,27 @@
 namespace App\Http\Middleware;
 
 use App\Exceptions\ForbiddenException;
-use App\Models\User;
+use App\Tasks\User\GetAuthenticatedUserTask;
 use Closure;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AuthMiddleware
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param $request
-     * @param Closure $next
-     * @return mixed
      * @throws ForbiddenException
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next): JsonResponse
     {
-        /** @var User $user */
-        $user = auth()->user();
-        if(!isset($user->id) || !$user->active) {
+        $user = app(GetAuthenticatedUserTask::class)->run();
+        if (! $user->active) {
             throw new ForbiddenException('This user is not active');
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        return $response instanceof JsonResponse
+            ? $response
+            : response()->json($response->getOriginalContent(), $response->getStatusCode());
     }
 }

@@ -2,32 +2,44 @@
 
 namespace App\Libraries;
 
+use App\Exceptions\CustomMessages\PetGalleryUploadLimitationException;
 use App\Exceptions\ForbiddenException;
-use App\Exceptions\PetGalleryUploadLimitationException;
 use App\Models\Pet;
-use App\Models\ReportedPet;
+use App\Models\Report;
 use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
 
 class S3Service
 {
     const PATH_BEFORE = 'users/';
+
     const PETS = '/pets/';
+
     const PET_REPORTED = '/reportedPets';
+
     const DEFAULT = '/default';
+
     const PATH_AVATAR = '/avatar';
+
     const PATH_GALLERY = '/gallery';
 
     const TYPE_AVATAR = 'avatar';
+
     const TYPE_GALLERY = 'gallery';
 
     private string $filePath;
+
     private string $filePathThumb;
+
     private string $fileName;
+
     private string $fileNameThumb;
-    private $s3;
+
+    private FilesystemAdapter $s3;
+
     private User $user;
 
     public function __construct(User $user)
@@ -37,65 +49,49 @@ class S3Service
     }
 
     /**
-     * @param $file
-     * @param $model
-     * @return Pet|User|bool|mixed
      * @throws ForbiddenException
-     * @throws \Throwable
      */
-    public function createAvatar($file, $model)
+    public function createAvatar(UploadedFile $file, User|Pet $model): User|Pet
     {
+        $modelName = get_class($model);
         $this->filePath = config('services.environment').'/'.self::PATH_BEFORE.$this->user->id;
-        switch ($model) {
-            case ($model instanceof Pet):
-                $this->filePath = $this->filePath.self::PETS.$model->id.self::PATH_AVATAR;
-                break;
-            case ($model instanceof User):
-                $this->filePath = $this->filePath.self::PATH_AVATAR;
-                break;
-            case ($model instanceof ReportedPet):
-                $this->filePath = $this->filePath.self::PET_REPORTED;
-                break;
-            default:
-                throw new ForbiddenException();
-        }
-        if($model->avatar) {
+        $this->filePath = match ($modelName) {
+            Pet::class => $this->filePath.self::PETS.$model->id.self::PATH_AVATAR,
+            User::class => $this->filePath.self::PATH_AVATAR,
+            default => throw new ForbiddenException,
+        };
+        if ($model->avatar) {
             $this->s3Remove($model->avatar['path']);
         }
         $data = $this->upload($file);
+
         return $this->uploadAvatar($model, $data);
     }
 
     /**
-     * @param $file
-     * @param $model
-     * @return bool
      * @throws ForbiddenException
-     * @throws \Throwable
+     * @throws PetGalleryUploadLimitationException
      */
-    public function createGallery($file, $model)
+    public function createGallery(UploadedFile $file, Pet $pet): Pet
     {
+        $modelName = get_class($pet);
         $this->filePath = config('services.environment').'/'.self::PATH_BEFORE.$this->user->id;
-        if($model->gallery && count($model->gallery) >= Pet::MAX_PET_UPLOADS_LIMIT) {
-            throw new PetGalleryUploadLimitationException();
+        if ($pet->gallery && count($pet->gallery) >= Pet::MAX_PET_UPLOADS_LIMIT) {
+            throw new PetGalleryUploadLimitationException;
         }
-        switch ($model) {
-            case ($model instanceof Pet):
-                $this->filePath = $this->filePath.self::PETS.$model->id.self::PATH_GALLERY;
-                break;
-            default:
-                throw new ForbiddenException();
-        }
+        $this->filePath = match ($modelName) {
+            Pet::class => $this->filePath.self::PETS.$pet->id.self::PATH_GALLERY,
+            default => throw new ForbiddenException,
+        };
         $data = $this->upload($file);
-        return $this->uploadGallery($model, $data);
+
+        return $this->uploadGallery($pet, $data);
     }
 
     /**
-     * @param $file
-     * @return array|bool
-     * @throws \Throwable
+     * @return array<string, string>
      */
-    public function upload($file)
+    public function upload(UploadedFile $file): array
     {
         $this->addFile($file);
         $root = $this->s3->url($this->filePath);
@@ -105,83 +101,75 @@ class S3Service
         $data['name'] = $this->fileName;
         $data['root'] = $root;
         $data['root_thumb'] = $rootThumb;
-        $data['path'] = str_replace("https://lost-my-pet.s3.eu-central-1.amazonaws.com/", "", $root);
-        $data['path_thumb'] = str_replace("https://lost-my-pet.s3.eu-central-1.amazonaws.com/", "", $rootThumb);
+        $data['path'] = str_replace('https://lost-my-pet.s3.eu-central-1.amazonaws.com/', '', $root);
+        $data['path_thumb'] = str_replace('https://lost-my-pet.s3.eu-central-1.amazonaws.com/', '', $rootThumb);
+
         return $data;
     }
 
     /**
-     * @param $model
-     * @param $data
-     * @return mixed
+     * @param  array<string, string>  $data
      */
-    public function uploadAvatar($model, $data)
+    public function uploadAvatar(User|Pet $model, array $data): User|Pet
     {
         $model->avatar = $data;
         $model->save();
+
         return $model;
     }
 
     /**
-     * @param $model
-     * @param $data
-     * @return mixed
+     * @param  array<string, string>  $data
      */
-    public function uploadGallery($model, $data)
+    public function uploadGallery(Pet $pet, array $data): Pet
     {
-        $gallery = $model->gallery;
+        $gallery = $pet->gallery;
         $gallery[] = $data;
-        $model->gallery = $gallery;
-        $model->save();
-        return $model;
+        $pet->gallery = $gallery;
+        $pet->save();
+
+        return $pet;
     }
 
     /**
-     * @param $model
-     * @param $files
-     * @return mixed
+     * @param  array<string>  $files
      */
-    public function removeGallery($model, $files)
+    public function removeGallery(Pet $pet, array $files): Pet
     {
-        $petGalleries = $model->gallery;
+        $petGalleries = $pet->gallery;
         $newGallery = [];
         foreach ($files as $file) {
-            foreach ((array)$petGalleries as $key => $image) {
+            foreach ($petGalleries as $key => $image) {
                 $save = true;
                 if ($image['root'] === $file) {
                     $this->s3Remove($image['path']);
                     $save = false;
                     unset($petGalleries[$key]);
                 }
-                if($save) {
+                if ($save) {
                     $newGallery[] = $image;
                 }
             }
         }
-        $model->gallery = $newGallery;
-        $model->save();
-        return $model;
+        $pet->gallery = $newGallery;
+        $pet->save();
+
+        return $pet;
     }
 
-    /**
-     * @param $path
-     * @return bool
-     */
-    public function s3Remove($path)
+    public function s3Remove(string $path): bool
     {
         $awsDelete = $this->s3->delete($path);
-        if(!$awsDelete) {
+        if (! $awsDelete) {
             return $awsDelete;
         }
+
         return true;
     }
 
-    /**
-     * @param $originalFile
-     */
-    private function addFile($originalFile)
+    private function addFile(UploadedFile $originalFile): void
     {
-        $timeNow = Carbon::now()->timestamp;
+        $timeNow = now()->timestamp;
         $s3Path = $this->filePath;
         $fileExtension = $originalFile->getClientOriginalExtension();
         $this->fileName = $timeNow.'.'.$fileExtension;
@@ -190,11 +178,11 @@ class S3Service
         $this->filePathThumb = $s3Path.'/'.$this->fileNameThumb;
         $file = Image::make($originalFile);
         $fileThumb = Image::make($originalFile);
-        $file = $file->resize(ReportedPet::DEFAULT_AVATAR_ORIGIN_IN_PIXEL, null, function($constraint) {
+        $file = $file->resize(Report::DEFAULT_AVATAR_ORIGIN_IN_PIXEL, null, function ($constraint) {
             $constraint->upsize();
             $constraint->aspectRatio();
         });
-        $fileThumb = $fileThumb->resize(ReportedPet::DEFAULT_AVATAR_THUMB_IN_PIXEL, null, function($constraint) {
+        $fileThumb = $fileThumb->resize(Report::DEFAULT_AVATAR_THUMB_IN_PIXEL, null, function ($constraint) {
             $constraint->upsize();
             $constraint->aspectRatio();
         });

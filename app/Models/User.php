@@ -2,44 +2,40 @@
 
 namespace App\Models;
 
+use App\Exceptions\UnauthorizedException;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
+/**
+ * @property int $id
+ * @property string $phone
+ * @property bool $admin
+ * @property string $email
+ */
 class User extends Authenticatable implements JWTSubject
 {
+    use HasFactory;
     use Notifiable;
     use SoftDeletes;
 
     const T = 'users';
-    const AVATAR_TYPE = 'user_avatar';
-    const ROMANIA_COUNTRY_CODE = '+40';
-    const DEFAULT_PASSWORD = 'pet';
-    const DEFAULT_VALID_EXPIRATION_CODE_IN_MIN = 5;
 
-    const DEFAULT_PHONES_FOR_TESTING = [
-        '+40711111111',
-        '+40711111112',
-        '+40711111113',
-        '+40711111114',
-        '+40711111115',
-        '+40711111116',
-        '+40711111117',
-        '+40711111118',
-        '+40711111119',
-        '+40755858442',
-        '+40749096820',
-        '+40747832443',
-        '+40747832443',
+    const AVATAR_TYPE = 'user_avatar';
+
+    const ROMANIA_COUNTRY_CODE = '+40';
+
+    const DEFAULT_PASSWORD = 'pet';
+
+    const POSSIBLE_UPDATED_FIELDS = [
+        'name',
+        //        'email',
+        'avatar',
     ];
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'name',
         'password',
@@ -50,118 +46,129 @@ class User extends Authenticatable implements JWTSubject
         'invite_token',
         'avatar',
         'admin',
-        'sms_code',
-        'sms_code_expiration',
         'timezone',
         'active',
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
     protected $hidden = [
         'password',
         'remember_token',
         'invite_token',
-        'sms_code',
-        'sms_code_expiration',
         'email_verified_at',
         'phone_prefix',
         'active',
     ];
 
-    /**
-     * The attributes that should be cast to native types.
-     *
-     * @var array
-     */
     protected $casts = [
-        'email_verified_at'     => 'datetime',
-        'sms_code_expiration'   => 'datetime',
-        'avatar'                => 'array',
+        'email_verified_at' => 'datetime',
+        'avatar' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
-    protected $dates = [
-        'created_at',
-        'updated_at',
-        'email_verified_at',
-        'sms_code_expiration',
-    ];
+    //    protected $with = ['pets', 'reportedPets', 'missingReportedPets'];
 
-    protected $with = ['pets', 'reportedPets', 'missingPets'];
-
-    public function toArray()
+    public function toArray(): array
     {
         $array = parent::toArray();
         $array['avatar'] = $this->avatar['root'] ?? null;
+
         return $array;
     }
 
-    public function isAdmin()
+    public static function boot(): void
     {
-        return $this->belongsTo(self::class)->where('admin', 1);
+        self::creating(function ($model) {
+            $model->phone_prefix = self::ROMANIA_COUNTRY_CODE;
+            $model->active = 1;
+        });
+
+        self::updating(function ($model) {
+            if ($model->isDirty(['phone_prefix', 'phone'])) {
+                throw new UnauthorizedException('Phone number cannot be updated');
+            }
+        });
+
+        parent::boot();
     }
 
     /**
-     * @return HasMany
+     * @return HasMany<Pet>
      */
-    public function pets()
+    public function pets(): HasMany
     {
         return $this->hasMany(Pet::class);
     }
 
     /**
-     * @return HasMany
+     * @return HasMany<Pet>
      */
-    public function allReportedPets()
+    public function missingPets(): HasMany
     {
-        return $this->hasMany(ReportedPet::class)->orderByDesc('id');
+        return $this->pets()->where('status', Pet::STATUS_MISSING);
     }
 
     /**
-     * @return HasMany
+     * @return HasMany<Report>
      */
-    public function reportedPets()
+    public function allReportedPets(): HasMany
     {
-        return $this->allReportedPets()->where('status', ReportedPet::STATUS_REPORTED);
+        return $this->hasMany(Report::class)->orderByDesc('id');
     }
 
     /**
-     * @return HasMany
+     * @return HasMany<Report>
      */
-    public function missingPets()
+    public function reportedPets(): HasMany
+    {
+        return $this->allReportedPets()->where('status', Report::STATUS_REPORTED);
+    }
+
+    /**
+     * @return HasMany<Report>
+     */
+    public function missingReportedPets(): HasMany
     {
         return $this->allReportedPets()->where('status', Pet::STATUS_MISSING);
     }
 
     /**
-     * Get the identifier that will be stored in the subject claim of the JWT.
-     *
-     * @return mixed
+     * @return HasMany<Chat>
      */
-    public function getJWTIdentifier()
+    public function ownerChats(): HasMany
+    {
+        return $this->hasMany(Chat::class, 'owner_id')->orderByDesc('id');
+    }
+
+    /**
+     * @return HasMany<Chat>
+     */
+    public function collaboratorChats(): HasMany
+    {
+        return $this->hasMany(Chat::class, 'user_id')->orderByDesc('id');
+    }
+
+    public function getJWTIdentifier(): mixed
     {
         return $this->getKey();
     }
 
     /**
-     * Return a key value array, containing any custom claims to be added to the JWT.
-     *
-     * @return array
+     * @return array<string, array<string, int|string>>
      */
-    public function getJWTCustomClaims()
+    public function getJWTCustomClaims(): array
     {
         $user = [
             'id' => $this->id,
-            'phone' => $this->phone
+            'phone' => $this->phone,
         ];
-        if($this->admin) {
+        if ($this->admin) {
             $user = array_merge($user, [
-                'email' => $this->email
+                'email' => $this->email,
             ]);
         }
+
         return ['user' => $user];
     }
 }

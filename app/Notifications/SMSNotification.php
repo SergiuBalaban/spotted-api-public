@@ -3,73 +3,61 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Facades\Vonage;
 use Illuminate\Notifications\Messages\MailMessage;
-//use Illuminate\Notifications\Messages\NexmoMessage;
-use Nexmo\Laravel\Facade\Nexmo;
+use Illuminate\Notifications\Messages\VonageMessage;
+use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Auth;
 
 class SMSNotification extends Notification
 {
     use Queueable;
 
-    /**
-     * Create a new notification instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        //
-    }
+    public function __construct() {}
 
     /**
-     * Get the notification's delivery channels.
-     *
-     * @param  mixed  $notifiable
-     * @return array
+     * @return string[]
      */
-    public function via($notifiable)
+    public function via(object $notifiable): array
     {
-        return ['nexmo'];
+        return ['vonage', 'mail'];
     }
 
-    /**
-     * Get the mail representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return \Illuminate\Notifications\Messages\MailMessage
-     */
-    public function toMail($notifiable)
+    public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-                    ->line('The introduction to the notification.')
-                    ->action('Notification Action', url('/'))
-                    ->line('Thank you for using our application!');
+            ->subject('Notification Subject')
+            ->line('The introduction to the notification.')
+            ->action('Notification Action', url('/'))
+            ->line('Thank you for using our application!');
     }
 
     /**
-     * Get the array representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return array
+     * @return array<string>
      */
-    public function toArray($notifiable)
+    public function toArray(object $notifiable): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
-    public function toNexmo($notifiable)
+    public function toVonage(object $notifiable): void
     {
-//        return (new NexmoMessage)
-//            ->content('Testing Nexmo SMS from Laravel 5');
-
-        Nexmo::message()->send([
-            'to'   => $this->user,
-            'from' => '16105552344',
-            'text' => 'Using the facade to send a message.'
-        ]);
+        (new VonageMessage)
+            ->content('Using Laravel Notification to send a message.')
+            ->from('16105552344');
+        //        Vonage::message()->send([
+        //            'to' => Auth::user()->phone,
+        //            'from' => '16105552344',
+        //            'text' => 'Using the facade to send a message.',
+        //        ]);
     }
+
+    //    public function toVonage(object $notifiable): VonageMessage
+    //    {
+    //        return (new VonageMessage)
+    //            ->clientReference((string) $notifiable->id)
+    //            ->content('Your SMS message content')
+    //            ->unicode()
+    //            ->from('15554443333');
+    //    }
 }

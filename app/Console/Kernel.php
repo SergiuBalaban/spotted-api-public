@@ -12,7 +12,7 @@ class Kernel extends ConsoleKernel
     /**
      * The Artisan commands provided by your application.
      *
-     * @var array
+     * @var string[]
      */
     protected $commands = [
         CronDeleteReportedPets::class,
@@ -22,13 +22,12 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      *
-     * @param Schedule $schedule
      * @return void
      */
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('cron:deleteReportedPetsAfterXDays')->dailyAt('23:00');
-//        $schedule->command('cron:resetBannedUsers')->monthlyOn('23:00');
+        //        $schedule->command('cron:resetBannedUsers')->monthlyOn('23:00');
         $schedule->command('horizon:snapshot')->everyFiveMinutes();
     }
 

@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -14,19 +13,12 @@ class BannedUserJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * @param User $user
-     */
-    public function handle(User $user)
+    public function handle(User $user): void
     {
-        print_r($user->id);die;
-        switch ($user->banned_count) {
-            case $user->banned_count > 2:
-                $time = Carbon::now()->addHours(3);
-                break;
-            default:
-                $time = Carbon::now()->addHour();
-        }
+        $time = match (true) {
+            $user->banned_count > 2 => now()->addHours(3),
+            default => now()->addHour(),
+        };
         $user->update([
             'banned' => true,
             'banned_count' => $user->banned_count + 1,

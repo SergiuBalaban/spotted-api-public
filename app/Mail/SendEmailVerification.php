@@ -2,43 +2,32 @@
 
 namespace App\Mail;
 
-use App\Models\User;
+use App\Models\AuthSms;
 use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Queue\SerializesModels;
 
 class SendEmailVerification extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    /**
-     * @var User
-     */
-    protected $user;
+    public function __construct(protected AuthSms $authSms) {}
 
-    /**
-     * Create a new message instance.
-     *
-     * SendEmailVerification constructor.
-     * @param User $user
-     */
-    public function __construct(User $user)
+    public function envelope(): Envelope
     {
-        $this->user = $user;
+        return new Envelope(
+            subject: 'Invitation for '.config('app.name'),
+        );
     }
 
-    /**
-     * Build the message.
-     *
-     * @return $this
-     */
-    public function build()
+    public function build(): SendEmailVerification
     {
-        return $this->subject('Invitation for ' . config('app.name'))
+        return $this
             ->markdown('emails.user-email-verification', [
-                'invite_link' => $this->user->invite_token,
-                'user'        => $this->user
+                'invite_link' => $this->authSms->invite_token,
+                'user_name' => 'Test user',
             ]);
     }
 }

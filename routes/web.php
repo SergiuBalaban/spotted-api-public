@@ -24,10 +24,10 @@ Route::group(['prefix' => 'v1'], function () {
         });
 
         Route::prefix('reported-pets')->name('pets')->group(function () {
-            Route::get('', 'AdminReportedPetController@index');
+            Route::get('', 'AdminReportController@index');
             Route::prefix('{reportedPetId}')->group(function () {
-                Route::get('', 'AdminReportedPetController@show');
-                Route::delete('', 'AdminReportedPetController@deleteReportedPet');
+                Route::get('', 'AdminReportController@show');
+                Route::delete('', 'AdminReportController@deleteReportedPet');
             });
         });
 

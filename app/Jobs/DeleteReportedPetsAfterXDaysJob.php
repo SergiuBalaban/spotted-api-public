@@ -2,9 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\ReportedPet;
-use App\Models\User;
-use Carbon\Carbon;
+use App\Models\Report;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,30 +13,12 @@ class DeleteReportedPetsAfterXDaysJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    private ?User $user;
-
-    /**
-     * DeleteReportedPetsAfterXDaysJob constructor.
-     *
-     * @param User|null $user
-     */
-    public function __construct(User $user=null)
+    public function handle(): void
     {
-        $this->user = $user;
-    }
-
-    /**
-     * Execute the job.
-     *
-     * @return void
-     */
-    public function handle()
-    {
-        $defaultDaysBeforeDelete = Carbon::now()->subDays(ReportedPet::DEFAULT_DAYS_BEFORE_DELETE);
-        $reportedPets = ReportedPet::where('status', ReportedPet::STATUS_REPORTED)->where('created_at', '<', $defaultDaysBeforeDelete);
-        $reportedPets->each(function (ReportedPet $reportedPet) {
-            $reportedPet->trackedPets()->delete();
-        });
-        $reportedPets->delete();
+        $defaultDaysBeforeDelete = now()->subDays(Report::DEFAULT_DAYS_BEFORE_DELETE);
+        Report::query()
+            ->where('status', Report::STATUS_REPORTED)
+            ->where('created_at', '<', $defaultDaysBeforeDelete)
+            ->delete();
     }
 }

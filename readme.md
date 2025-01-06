@@ -80,9 +80,21 @@ The Laravel framework is open-source software licensed under the [MIT license](h
 - php artisan jwt:secret
 - php artisan config:cache
 - php artisan migrate
+- php artisan migrate:fresh
 - php artisan db:seed
 - composer dump-autoload
-- php artisan test
 
 ## Bugs
 - Resolve bug with access token (after connecting some times).
+
+## Tests
+php artisan test --stop-on-failure
+php artisan test --parallel
+php artisan test --coverage
+php artisan test --profile
+
+php artisan test --testdox --display-slow-tests=5
+
+## PHPSTAN
+vendor/bin/phpstan analyse -l 1 app --memory-limit=2G
+vendor/bin/phpstan diagnose

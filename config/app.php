@@ -123,6 +123,8 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
+    'preventLazyLoading' => env('APP_PREVENT_LAZY_LOADING', false),
+
     /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers
@@ -175,6 +177,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\HorizonServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+        App\Providers\TelescopeServiceProvider::class,
 
     ],
 

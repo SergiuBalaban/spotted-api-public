@@ -31,10 +31,7 @@ class CronResetBannedUsers extends Command
         parent::__construct();
     }
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(): void
     {
         ResetBannedUsersJob::dispatch();
     }

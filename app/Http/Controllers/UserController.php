@@ -2,107 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\ResourceNotFoundException;
+use App\Actions\User\DeleteProfileAction;
+use App\Actions\User\GetProfileAction;
+use App\Actions\User\UpdateProfileAction;
+use App\Actions\User\UpdateProfileEmailAction;
+use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserEmailRequest;
-use App\Http\Requests\UserRequest;
-use App\Http\Responses\Response;
-use App\Libraries\S3Service;
-use App\Libraries\UserService;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function index(Request $request)
+    public function getProfile(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-        return response()->json($user, 200);
+        $response = app(GetProfileAction::class)->run($request);
+
+        return response()->json($response);
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param UserRequest $request
-     * @return JsonResponse
-     * @throws \Throwable
-     */
-    public function update(UserRequest $request)
+    public function updateProfile(UpdateUserRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-        $user->fill($request->all());
-        $user->save();
+        $response = app(UpdateProfileAction::class)->run($request);
 
-        if($request->has('file')) {
-            $storage = new S3Service($user);
-            $user = $storage->createAvatar($request->file, $user);
-        }
-
-        return response()->json($user, 200);
+        return response()->json($response);
     }
 
-    /**
-     * Update the user email.
-     *
-     * @param UserEmailRequest $request
-     * @return Response|JsonResponse
-     * @throws \Throwable
-     */
-    public function updateEmail(UserEmailRequest $request)
+    public function updateEmail(UserEmailRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        $user = app(UpdateProfileEmailAction::class)->run($request);
 
-        $userService = new UserService($user);
-        $user = $userService->sendVerificationToken($user->email);
-        if(!$user) {
-            throw new ResourceNotFoundException(User::class);
-        }
-
-        return response()->json($user, 200);
+        return response()->json($user);
     }
 
-    /**
-     * Resend user verification code
-     *
-     * @param UserRequest $request
-     * @return Response
-     * @throws \Throwable
-     */
-    public function sendEmailVerification(UserRequest $request)
+    public function deleteProfile(Request $request): Response
     {
-        /** @var User $user */
-        $user = $request->user();
+        app(DeleteProfileAction::class)->run($request);
 
-        $userService = new UserService($user);
-        if(!$userService->sendVerificationToken($user->email)) {
-            return $this->response
-                ->withError('', trans('message.user_email_verification_send_failed'));
-        }
-
-        return $this->response
-            ->withSuccess('', trans('message.user_email_verification_send_success'));
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Request $request)
-    {
-        $request->user()->forceDelete();
-        auth()->logout();
         return response()->noContent();
     }
-
 }

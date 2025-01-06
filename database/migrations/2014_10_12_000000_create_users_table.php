@@ -1,9 +1,9 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 class CreateUsersTable extends Migration
 {
@@ -24,8 +24,6 @@ class CreateUsersTable extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('invite_token')->nullable()->unique();
             $table->json('avatar')->nullable();
-            $table->integer('sms_code')->nullable();
-            $table->timestamp('sms_code_expiration')->nullable();
             $table->boolean('active')->default(1);
             $table->boolean('admin')->default(0);
             $table->string('timezone')->nullable();

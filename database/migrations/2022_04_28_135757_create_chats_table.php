@@ -6,37 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 class CreateChatsTable extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
         Schema::create('chats', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->text('message');
-            $table->unsignedBigInteger('sender_user_id');
-            $table->unsignedBigInteger('receiver_user_id');
-            $table->unsignedBigInteger('reported_pet_id');
-            $table->unsignedBigInteger('missing_pet_id');
+            $table->unsignedBigInteger('owner_id');
+            $table->unsignedBigInteger('reporter_id');
+            $table->unsignedBigInteger('report_found_id');
+            $table->unsignedBigInteger('report_missing_id');
+            $table->boolean('active')->default(false);
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('sender_user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('receiver_user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('reported_pet_id')->references('id')->on('reported_pets')->onDelete('cascade');
-            $table->foreign('missing_pet_id')->references('id')->on('pets')->onDelete('cascade');
+            $table->foreign('owner_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('reporter_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('report_found_id')->references('id')->on('reports')->onDelete('cascade');
+            $table->foreign('report_missing_id')->references('id')->on('reports')->onDelete('cascade');
         });
-    }
-
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
-    {
-        Schema::dropIfExists('chats');
     }
 }

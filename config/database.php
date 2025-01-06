@@ -133,8 +133,8 @@ return [
             'database' => env('REDIS_DB', 0),
             'read_write_timeout' => 0,
             'tls' => [
-                'rejectUnauthorized' => false
-            ]
+                'rejectUnauthorized' => false,
+            ],
         ],
 
         'cache' => [

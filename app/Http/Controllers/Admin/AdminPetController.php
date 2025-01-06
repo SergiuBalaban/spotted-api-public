@@ -9,26 +9,23 @@ use Illuminate\Http\Request;
 
 class AdminPetController extends Controller
 {
-    /**
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $itemsPerPage = $request->length ?? 15;
         $page = $request->start ?? 1;
-        $pets = Pet::orderByDesc('created_at')->with('user')->withTrashed()->paginate($itemsPerPage, ['*'], 'page', $page);
-        return response()->json($pets, 200);
+        $pets = Pet::query()
+            ->orderByDesc('created_at')
+            ->with('user')
+            ->withTrashed()
+            ->paginate($itemsPerPage, ['*'], 'page', $page);
+
+        return response()->json($pets);
     }
 
-    /**
-     * @param Request $request
-     * @param $reportedPetId
-     * @return JsonResponse
-     */
-    public function show(Request $request, $reportedPetId)
+    public function show(Request $request, int $reportedPetId): JsonResponse
     {
         $pet = Pet::withTrashed()->with('user')->find($reportedPetId);
-        return response()->json($pet, 200);
+
+        return response()->json($pet);
     }
 }

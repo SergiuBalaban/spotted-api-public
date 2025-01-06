@@ -13,14 +13,9 @@ class ResetBannedUsersJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /**
-     * Execute the job.
-     *
-     * @return void
-     */
-    public function handle()
+    public function handle(): void
     {
-        User::where('banned', 1)->update([
+        User::query()->where('banned', 1)->update([
             'banned' => false,
             'banned_count' => 0,
             'banned_at' => null,

@@ -2,15 +2,15 @@
 
 namespace App\Exceptions;
 
+use App\Exceptions\CustomMessages\ErrorMessageValue;
+
 class UserSMSCodeExpiredException extends ForbiddenException
 {
-    /**
-     * UserSMSCodeExpiredException constructor.
-     */
     public function __construct()
     {
-        $message = 'Your sms code was expired';
-        $code = 'error_expired_sms_code';
-        parent::__construct(json_encode(['message' => $message, 'code' => $code]));
+        parent::__construct(json_encode([
+            'message' => ErrorMessageValue::ERROR_SMS_EXPIRED_MESSAGE,
+            'code' => ErrorMessageValue::ERROR_SMS_EXPIRED_CODE,
+        ], JSON_THROW_ON_ERROR));
     }
 }

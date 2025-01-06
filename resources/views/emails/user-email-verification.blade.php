@@ -1,6 +1,6 @@
 @component('mail::message')
 
-**{{ $user->name }}** has invited you to work on their NearMint account.
+**{{ $user_name }}** has invited you to work on their Spottable account.
 Please accept this invite to create your account and get started.
 
 @component('mail::button', ['url' => $invite_link])

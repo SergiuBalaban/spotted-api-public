@@ -1,30 +1,52 @@
 <?php
 
-use App\Models\ReportedPet;
+use App\Models\Pet;
 
-/**
- * @return string
- */
-function generateSmsCode()
+function getPhoneNumber(): string
+{
+    $phoneRandom = rand(50000000, 59999999);
+
+    return '+407'.$phoneRandom;
+}
+
+function generateSmsCode(): string
 {
     $result = '';
-    for($i = 0; $i < 6; $i++) {
+    for ($i = 0; $i < 6; $i++) {
         $result .= mt_rand(0, 9);
     }
+
     return $result;
 }
 
-/**
- * @param $reportedPets
- * @param $currentLatitude
- * @param $currentLongitude
- * @return mixed
- */
-function getReportedPetsByLocation($reportedPets, $currentLatitude, $currentLongitude)
+function parseText(string $textToFind, string $textToReplace, string $message): string
 {
-    if (isset($currentLatitude) && isset($currentLongitude)) {
-        $radius = ReportedPet::DEFAULT_RADIUS_IN_KM;
-        return $reportedPets->radius($currentLatitude, $currentLongitude, $radius);
+    return str_replace($textToFind, $textToReplace, $message);
+}
+
+function getPetCategory(): string
+{
+    return Pet::CATEGORIES[array_rand(Pet::CATEGORIES)];
+}
+
+function getPetSex(): string
+{
+    return Pet::SEX[array_rand(Pet::CATEGORIES)];
+}
+
+/**
+ * @param  array<string, string>  $fields
+ * @param  array<string, string>  $requestData
+ * @return array<string, string>
+ */
+function getFilledDataFromRequest(array $fields, array $requestData): array
+{
+    $data = [];
+    foreach ($fields as $key) {
+        if (isset($requestData[$key])) {
+            $data[$key] = $requestData[$key];
+        }
     }
-    return $reportedPets;
+
+    return $data;
 }
